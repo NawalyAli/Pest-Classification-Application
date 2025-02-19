@@ -1,53 +1,25 @@
-from collections import OrderedDict
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import torch
 import torchvision.transforms as transforms
 from PIL import Image
-import io
 import json
-import torchvision.models as models
+import time
 
-# Define the model class (exact same as in training)
-class PestClassifier(torch.nn.Module):
-    def __init__(self, num_classes=102):  # Ensure this matches training
-        super(PestClassifier, self).__init__()
-        self.model = models.resnet18(weights=None)
-        self.model.fc = torch.nn.Linear(self.model.fc.in_features, num_classes)
-
-    def forward(self, x):
-        return self.model(x)
-
-# Initialize Flask
+# Initialize Flask app
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/predict": {"origins": "*"}})  # Allow all origins
 
-# Load the trained model checkpoint
+# Load the trained model (Full model loading)
 checkpoint_path = r"C:\Users\Nawal\OneDrive\Desktop\Pest-Classification-Application\best_pest_classification_model.pth"
 
-# Step 1: Load the checkpoint
-checkpoint = torch.load(checkpoint_path, map_location="cpu")
-
-# Check if it's a full model or a state_dict
-if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
-    checkpoint = checkpoint["state_dict"]  # If using a checkpoint dict
-
-# Step 2: Fix the key names if necessary
-new_state_dict = OrderedDict()
-for k, v in checkpoint.items():
-    if k.startswith("model."):  # Remove "model." prefix if it exists
-        k = k.replace("model.", "")
-    elif k.startswith("module."):  # Remove "module." if trained with DataParallel
-        k = k.replace("module.", "")
-    new_state_dict[k] = v
-
-# Step 3: Load the model architecture and state dict
-model = PestClassifier(num_classes=102)  # Ensure num_classes matches training
-model.load_state_dict(new_state_dict, strict=False)  # strict=False to ignore minor mismatches
-
-# Set model to evaluation mode
-model.eval()
-print("✅ Model loaded successfully!")
+try:
+    model = torch.load(checkpoint_path, map_location="cpu", weights_only=False)  # Load full model
+    model.eval()
+    print("✅ Model loaded successfully!")
+except Exception as e:
+    print(f"❌ Error loading model: {e}")
+    model = None  # Avoid crashes if model fails to load
 
 # Define image transformations
 transform = transforms.Compose([
@@ -64,31 +36,68 @@ except FileNotFoundError:
     print("❌ Error: class_labels.json not found")
     class_labels = {}
 
+
 # Define harmful pests (replace with actual names)
-harmful_pests = {"Pest1", "Pest2"}
+harmful_pests = {"rice leaf roller", "rice leaf caterpillar", "paddy stem maggot", "asiatic rice borer", "yellow rice borer", "rice gall midge",
+                 "Rice Stemfly", "brown plant hopper", "white backed plant hopper", "small brown plant hopper", "rice water weevil", "rice leafhopper",
+                 "grain spreader thrips", "rice shell pest", "grub", "mole cricket", "wireworm", "white margined moth", "black cutworm", "large cutworm",
+                 "yellow cutworm", "red spider", "corn borer", "army worm", "aphids", "Potosiabre vitarsis", "peach borer", "english grain aphid", "green bug",
+                 "bird cherry-oataphid", "wheat blossom midge", "penthaleus major", "longlegged spider mite", "wheat phloeothrips", "wheat sawfly", "cerodonta denticornis",
+                 "beet fly", "flea beetle", "cabbage army worm", "beet army worm", "Beet spot flies", "meadow moth", "beet weevil", "sericaorient alismots chulsky",
+                 "alfalfa weevil", "flax budworm", "alfalfa plant bug", "tarnished plant bug", "Locustoidea", "lytta polita", "legume blister beetle", "blister beetle",
+                 "therioaphis maculata Buckton", "odontothrips loti", "Thrips", "alfalfa seed chalcid", "Pieris canidia", "Apolygus lucorum", "Limacodidae",
+                 "Viteus vitifoliae", "Colomerus vitis", "Brevipoalpus lewisi McGregor", "oides decempunctata","Polyphagotars onemus latus", "Pseudococcus comstocki Kuwana",
+                 "parathrene regalis", "Ampelophaga", "Lycorma delicatula", "Xylotrechus", "Cicadella viridis", "Miridae", "Trialeurodes vaporariorum",
+                 "Erythroneura apicalis", "Papilio xuthus", "Panonchus citri McGregor", "Phyllocoptes oleiverus ashmead", "Icerya purchasi Maskell", "Unaspis yanonensis",
+                 "Ceroplastes rubens", "Chrysomphalus aonidum", "Parlatoria zizyphus Lucus", "Nipaecoccus vastalor", "Aleurocanthus spiniferus", "Tetradacus c Bactrocera minax",
+                 "Dacus dorsalis(Hendel)", "Bactrocera tsuneonis", "Prodenia litura", "Adristyrannus", "Phyllocnistis citrella Stainton", "Toxoptera citricidus",
+                 "Toxoptera aurantii", "Aphis citricola Vander Goot", "Scirtothrips dorsalis Hood", "Dasineura sp", "Lawana imitata Melichar", "Salurnis marginella Guerr",
+                 "Deporaus marginatus Pascoe", "Chlumetia transversa", "Mango flat beak leafhopper", "Rhytidodera bowrinii white", "Sternochetus frigidus", "Cicadellidae"}
+
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    if model is None:
+        return jsonify({"error": "Model not loaded"}), 500
+
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files["file"]
-    image = Image.open(io.BytesIO(file.read())).convert("RGB")
+
+    # Debugging: Print filename & timestamp
+    print(f"📸 Received file: {file.filename} at {time.strftime('%H:%M:%S')}")
+
+    file.stream.seek(0)
+    image = Image.open(file.stream).convert("RGB")
+
+    # Apply transformations
     image = transform(image).unsqueeze(0)  # Add batch dimension
 
+    # Ensure fresh model inference every time
     with torch.no_grad():
-        output = model(image)
-        _, predicted_class = torch.max(output, 1)
+        output = model(image)  # Get raw model outputs
+        probabilities = torch.nn.functional.softmax(output, dim=1)  # Convert to probabilities
+        confidence, predicted_class = torch.max(probabilities, 1)  # Get top class & confidence
 
     class_id = str(predicted_class.item())
 
     if class_id not in class_labels:
+        print("⚠️ Class not found in labels")
         return jsonify({"error": "Class not found in labels"}), 500
 
     class_name = class_labels[class_id]
     is_harmful = class_name in harmful_pests
 
-    return jsonify({"class": class_name, "harmful": is_harmful})
+    print(f"✅ Classified as: {class_name} (Harmful: {is_harmful})")
+    print(f"🎯 Confidence: {confidence.item()}")
+
+    return jsonify({
+        "class": class_name,
+        "harmful": is_harmful,
+        "confidence": confidence.item()
+    }), 200
+
 
 if __name__ == "__main__":
     app.run(debug=True)
