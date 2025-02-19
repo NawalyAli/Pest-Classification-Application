@@ -158,7 +158,7 @@ if __name__ == "__main__":
         # Save the best model
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            torch.save(model.state_dict(), best_model_path)
+            torch.save(model, best_model_path)  # Save the full model
             print(f"💾 Best model saved with Validation Accuracy: {best_val_acc:.2f}%")
 
     # Confusion Matrix
