@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { CircularProgress, Button, Card, CardContent, Typography, Box, Snackbar, Alert } from "@mui/material";
+import { CloudUpload, BugReport } from "@mui/icons-material";
+import { useDropzone } from "react-dropzone";
 
 // Pest dictionary with crop and harmful status
 const pestInfo = {
@@ -112,186 +115,194 @@ function App() {
   const [imagePreview, setImagePreview] = useState(null);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    setFile(selectedFile);
-
-    // Preview image before upload
-    if (selectedFile) {
+  // Drag & Drop File Handler
+  const { getRootProps, getInputProps } = useDropzone({
+    accept: "image/*",
+    multiple: false,
+    onDrop: (acceptedFiles) => {
+      const selectedFile = acceptedFiles[0];
+      setFile(selectedFile);
       const reader = new FileReader();
-      reader.onload = (event) => {
-        setImagePreview(event.target.result);
-      };
+      reader.onload = (e) => setImagePreview(e.target.result);
       reader.readAsDataURL(selectedFile);
-    }
-  };
+    },
+  });
 
+  // Upload Image for Classification
   const handleUpload = async () => {
     if (!file) {
-      alert("Please select an image first!");
+      setError("Please select an image first!");
       return;
     }
-  
+
     const formData = new FormData();
     formData.append("file", file);
-  
     setLoading(true);
-    setResult(null); // Reset previous result
-  
+    setResult(null);
+
     try {
       const response = await axios.post(`http://127.0.0.1:5000/predict?t=${Date.now()}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-  
+
       const pest = response.data.class;
       setResult({ pest, ...pestInfo[pest] });
     } catch (error) {
       console.error("Error uploading file:", error.response ? error.response.data : error.message);
-      alert("Failed to classify the image. Check the console for details.");
+      setError("Failed to classify the image. Please try again.");
     }
-  
+
     setLoading(false);
   };
 
-  const handleNewUpload = () => {
+  // Reset the app state
+  const handleReset = () => {
     setFile(null);
     setImagePreview(null);
     setResult(null);
-    setLoading(false);
+    setError(null);
   };
-  
-  
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.header}>Pest Classification</h2>
+    <Box sx={styles.container}>
+      <Card sx={styles.card}>
+        <Typography variant="h4" sx={styles.header}>
+          🐛 Pest Classification
+        </Typography>
 
-      <div style={styles.content}>
-        {/* Left Side: Image Preview */}
-        <div style={styles.imageContainer}>
+        {/* Drag & Drop Area */}
+        <Box {...getRootProps()} sx={styles.dropzone}>
+          <input {...getInputProps()} />
           {imagePreview ? (
             <img src={imagePreview} alt="Uploaded" style={styles.image} />
           ) : (
-            <p style={styles.placeholder}>Image Preview</p>
+            <Typography color="textSecondary" sx={styles.dropzoneText}>
+              Drag & drop an image here, or click to select a file
+            </Typography>
           )}
-        </div>
+        </Box>
 
-        {/* Right Side: Classification Results */}
-        <div style={styles.resultContainer}>
-          {result ? (
-            <div style={{ ...styles.resultBox, backgroundColor: result.harmful ? "#ffcccc" : "#ccffcc" }}>
-              <h3>Classification Result:</h3>
-              <p><strong>Pest Type:</strong> {result.pest}</p>
-              <p><strong>Harmful:</strong> {result.harmful ? "✅ Yes" : "❌ No"}</p>
-              <p><strong>Affected Crop:</strong> {result.crop || "Unknown"}</p>
-            </div>
-          ) : (
-            <p style={styles.placeholder}>No classification yet</p>
-          )}
-        </div>
-      </div>
+        {/* Upload Button & Loader */}
+        <Box sx={styles.buttonContainer}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<CloudUpload />}
+            onClick={handleUpload}
+            disabled={loading || !file}
+            sx={styles.button}
+          >
+            {loading ? <CircularProgress size={24} color="inherit" /> : "Upload & Classify"}
+          </Button>
+        </Box>
 
-      {/* Bottom Section: Upload Controls */}
-      <div style={styles.bottomSection}>
-      <input 
-      key={file ? file.name : "new-file"}
-      type="file"
-      accept="image/*" 
-      onChange={handleFileChange} 
-      style={styles.fileInput}
-
-      />
-
-        <button 
-          onClick={handleUpload} 
-          disabled={loading} 
-          style={{ ...styles.button, backgroundColor: loading ? "gray" : "#007bff" }}
-        >
-          {loading ? "Classifying..." : "Upload & Classify"}
-        </button>
+        {/* Classification Results */}
         {result && (
-          <button onClick={handleNewUpload} style={styles.newUploadButton}>
-            Upload New Image
-          </button>
+          <CardContent sx={{ ...styles.resultBox, backgroundColor: result.harmful ? "#f8d7da" : "#d4edda" }}>
+            <Typography variant="h6" sx={styles.resultHeader}>
+              <BugReport fontSize="large" /> {result.pest}
+            </Typography>
+            <Typography variant="body1">
+              <strong>Harmful:</strong> {result.harmful ? "✅ Yes" : "❌ No"}
+            </Typography>
+            <Typography variant="body1">
+              <strong>Affected Crop:</strong> {result.crop}
+            </Typography>
+          </CardContent>
         )}
-      </div>
-    </div>
+
+        {/* Reset Button */}
+        {result && (
+          <Box sx={styles.buttonContainer}>
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<CloudUpload />}
+              onClick={handleReset}
+              sx={styles.button}
+            >
+              Upload New Image
+            </Button>
+          </Box>
+        )}
+      </Card>
+
+      {/* Error Snackbar */}
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert onClose={() => setError(null)} severity="error" sx={{ width: "100%" }}>
+          {error}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 }
 
-// Styles
 const styles = {
   container: {
-    textAlign: "center",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: "100vh",
+    backgroundColor: "#f4f7fc",
     padding: "20px",
-    fontFamily: "Arial, sans-serif",
+  },
+  card: {
+    width: "100%",
+    maxWidth: "600px",
+    padding: "20px",
+    borderRadius: "10px",
+    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+    backgroundColor: "#fff",
   },
   header: {
-    fontSize: "24px",
+    textAlign: "center",
+    marginBottom: "20px",
+    color: "#333",
+  },
+  dropzone: {
+    border: "2px dashed #007bff",
+    borderRadius: "10px",
+    padding: "20px",
+    textAlign: "center",
+    cursor: "pointer",
+    backgroundColor: "#f9f9f9",
     marginBottom: "20px",
   },
-  content: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: "20px",
-  },
-  imageContainer: {
-    width: "300px",
-    height: "300px",
-    border: "2px dashed #ccc",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-    borderRadius: "10px",
+  dropzoneText: {
+    color: "#666",
   },
   image: {
     maxWidth: "100%",
-    maxHeight: "100%",
-    objectFit: "contain",
-  },
-  resultContainer: {
-    width: "300px",
-    minHeight: "200px",
-    border: "1px solid #ccc",
-    padding: "15px",
+    maxHeight: "300px",
     borderRadius: "10px",
-    backgroundColor: "#f9f9f9",
+  },
+  buttonContainer: {
     display: "flex",
     justifyContent: "center",
-    alignItems: "center",
-  },
-  resultBox: {
-    padding: "15px",
-    borderRadius: "10px",
-  },
-  placeholder: {
-    color: "#888",
-  },
-  bottomSection: {
-    marginTop: "20px",
-  },
-  fileInput: {
-    marginBottom: "10px",
+    marginBottom: "20px",
   },
   button: {
-    padding: "10px 15px",
-    color: "white",
-    border: "none",
-    cursor: "pointer",
-    borderRadius: "5px",
-    marginLeft: "10px",
+    padding: "10px 20px",
+    fontSize: "16px",
+    borderRadius: "8px",
   },
-  newUploadButton: {
-    padding: "10px 15px",
-    backgroundColor: "#28a745",
-    color: "white",
-    border: "none",
-    cursor: "pointer",
-    borderRadius: "5px",
-    marginLeft: "10px",
+  resultBox: {
+    padding: "20px",
+    borderRadius: "10px",
+    marginBottom: "20px",
+  },
+  resultHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    marginBottom: "10px",
   },
 };
 
