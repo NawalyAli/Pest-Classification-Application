@@ -1,13 +1,12 @@
 // SplashScreen.js
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './SplashScreen.css'; // Ensure you create a CSS file for styling
+import './SplashScreen.css';
 
 export default function SplashScreen() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Navigate to Home page after 3 seconds
     const timer = setTimeout(() => {
       navigate('/home');
     }, 3000);
