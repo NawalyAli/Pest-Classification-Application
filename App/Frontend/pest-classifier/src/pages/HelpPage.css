@@ -1,0 +1,79 @@
+.help-container {
+    background-color: #222;
+    color: black;
+    text-align: center;
+    padding: 20px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .faq-section {
+    width: 80%;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .faq-item {
+    text-align: left;
+    margin-bottom: 15px;
+  }
+  
+  .faq-item strong {
+    display: block;
+    font-size: 1.1rem;
+    color: #333;
+  }
+  
+  .help-form {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    width: 80%;
+  }
+  
+  textarea {
+    width: 100%;
+    height: 100px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    resize: none;
+  }
+  
+  button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+  }
+  
+  .success-message {
+    color: green;
+    font-weight: bold;
+  }
+
+  .go-back-button {
+    background: #444;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    position: absolute;
+    top: 20px;
+    left: 20px;
+  }
+  
+  .go-back-button:hover {
+    background: #ff6b6b;
+  }
+  
+  

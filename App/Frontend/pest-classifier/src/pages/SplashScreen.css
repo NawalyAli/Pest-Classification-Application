@@ -1,0 +1,13 @@
+.splash-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #fff;
+  }
+  
+  .splash-logo {
+    width: 250px; /* Adjust as needed */
+    height: auto;
+  }
+  

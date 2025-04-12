@@ -1,0 +1,66 @@
+.upload-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 76.5vh;
+    flex-direction: column;
+  }
+  
+  .upload-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 100px;
+    border: 2px dashed #6c757d;
+    border-radius: 10px;
+    background-color: #f8f9fa;
+    text-align: center;
+    cursor: pointer;
+  }
+  
+  .upload-icon {
+    color: #6c757d;
+  }
+  
+  .upload-button {
+    margin-top: 10px;
+    padding: 10px 15px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 24px;
+  }
+  
+  .preview-container, .result-box {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    width: 350px;
+  }
+  
+  .uploaded-image, .classified-image {
+    width: 100%;
+    max-height: 600px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .recognized {
+    background-color: #ff4d4d; /* Red for recognized pests */
+    color: white;
+  }
+  
+  .unknown {
+    background-color: #bfbfbf; /* Grey for unknown pests */
+    color: black;
+  }
+  
+  .error-message {
+    color: red;
+    font-weight: bold;
+  }
+  
