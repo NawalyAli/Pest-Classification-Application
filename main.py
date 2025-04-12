@@ -51,7 +51,7 @@ class PestDataset(Dataset):
 
         # Read label
         with open(label_path, "r") as f:
-            label = int(f.readline().strip().split()[0])  # Assuming the first number is the class ID
+            label = int(f.readline().strip().split()[0])
 
         return image, label
 
@@ -67,7 +67,7 @@ class FocalLoss(nn.Module):
 
     def forward(self, logits, targets):
         ce_loss = self.ce_loss(logits, targets)
-        pt = torch.exp(-ce_loss)  # Probabilities for correct class
+        pt = torch.exp(-ce_loss)
         focal_loss = (1 - pt) ** self.gamma * ce_loss
 
         if self.alpha is not None:
@@ -100,13 +100,24 @@ if __name__ == "__main__":
     model = model.to(device)
 
     # Define Focal Loss and optimizer
-    criterion = FocalLoss(gamma=2.0)  # You can adjust gamma
+    criterion = FocalLoss(gamma=2.0)
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
     # Training loop
     num_epochs = 10
     best_val_acc = 0.0  # Tracking the best validation accuracy
     best_model_path = "best_pest_classification_model.pth"
+
+    # Lists to track metrics over epochs
+    train_accuracies = []
+    train_precisions = []
+    train_recalls = []
+    train_f1s = []
+
+    val_accuracies = []
+    val_precisions = []
+    val_recalls = []
+    val_f1s = []
 
     for epoch in range(num_epochs):
         model.train()
@@ -132,8 +143,22 @@ if __name__ == "__main__":
             if i % 100 == 0:
                 print(f"🟢 Epoch {epoch + 1}, Batch {i}/{len(train_loader)}: Loss = {loss.item():.4f}")
 
+        # Training metrics
         train_acc = accuracy_score(all_train_labels, all_train_preds) * 100
-        print(f"✅ Epoch {epoch + 1} complete. Training Accuracy: {train_acc:.2f}%")
+        train_precision = precision_score(all_train_labels, all_train_preds, average='macro', zero_division=1)
+        train_recall = recall_score(all_train_labels, all_train_preds, average='macro', zero_division=1)
+        train_f1 = f1_score(all_train_labels, all_train_preds, average='macro', zero_division=1)
+
+        train_accuracies.append(train_acc)
+        train_precisions.append(train_precision)
+        train_recalls.append(train_recall)
+        train_f1s.append(train_f1)
+
+        print(f"✅ Epoch {epoch + 1} Training Metrics:")
+        print(f"    Accuracy:  {train_acc:.2f}%")
+        print(f"    Precision: {train_precision:.4f}")
+        print(f"    Recall:    {train_recall:.4f}")
+        print(f"    F1 Score:  {train_f1:.4f}")
 
         # Validation
         model.eval()
@@ -155,6 +180,11 @@ if __name__ == "__main__":
         print(
             f"🔵 Validation Accuracy: {val_acc:.2f}%, Precision: {precision:.4f}, Recall: {recall:.4f}, F1-score: {f1:.4f}")
 
+        val_accuracies.append(val_acc)
+        val_precisions.append(precision)
+        val_recalls.append(recall)
+        val_f1s.append(f1)
+
         # Save the best model
         if val_acc > best_val_acc:
             best_val_acc = val_acc
@@ -171,3 +201,51 @@ if __name__ == "__main__":
     plt.show()
 
     print(f"🏆 Training complete. Best Model Saved at {best_model_path} with Accuracy: {best_val_acc:.2f}%")
+
+    epochs = range(1, num_epochs + 1)
+
+    plt.figure(figsize=(16, 10))
+
+    # Accuracy
+    plt.subplot(2, 2, 1)
+    plt.plot(epochs, train_accuracies, label='Train Accuracy')
+    plt.plot(epochs, val_accuracies, label='Val Accuracy')
+    plt.title('Accuracy Over Epochs')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy (%)')
+    plt.legend()
+    plt.grid(True)
+
+    # Precision
+    plt.subplot(2, 2, 2)
+    plt.plot(epochs, train_precisions, label='Train Precision')
+    plt.plot(epochs, val_precisions, label='Val Precision')
+    plt.title('Precision Over Epochs')
+    plt.xlabel('Epoch')
+    plt.ylabel('Precision')
+    plt.legend()
+    plt.grid(True)
+
+    # Recall
+    plt.subplot(2, 2, 3)
+    plt.plot(epochs, train_recalls, label='Train Recall')
+    plt.plot(epochs, val_recalls, label='Val Recall')
+    plt.title('Recall Over Epochs')
+    plt.xlabel('Epoch')
+    plt.ylabel('Recall')
+    plt.legend()
+    plt.grid(True)
+
+    # F1 Score
+    plt.subplot(2, 2, 4)
+    plt.plot(epochs, train_f1s, label='Train F1 Score')
+    plt.plot(epochs, val_f1s, label='Val F1 Score')
+    plt.title('F1 Score Over Epochs')
+    plt.xlabel('Epoch')
+    plt.ylabel('F1 Score')
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.savefig("training_metrics_over_epochs.png")
+    plt.show()
