@@ -5,6 +5,7 @@ import torchvision.transforms as transforms
 from PIL import Image
 import json
 import time
+from PIL import UnidentifiedImageError
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -68,8 +69,11 @@ def predict():
     # Debugging: Print filename & timestamp
     print(f"📸 Received file: {file.filename} at {time.strftime('%H:%M:%S')}")
 
-    file.stream.seek(0)
-    image = Image.open(file.stream).convert("RGB")
+    try:
+        file.stream.seek(0)
+        image = Image.open(file.stream).convert("RGB")
+    except UnidentifiedImageError:
+        return jsonify({"error": "Uploaded file is not a valid image"}), 400
 
     # Apply transformations
     image = transform(image).unsqueeze(0)  # Add batch dimension
